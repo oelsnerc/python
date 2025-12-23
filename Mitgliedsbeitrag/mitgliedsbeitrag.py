@@ -1,6 +1,7 @@
 import argparse
 import csv
 from typing import NamedTuple
+from enum import Enum
 from datetime import date, timedelta, datetime
 
 #------------------------------------------------------------------------------
@@ -10,12 +11,22 @@ def asDate(date_str: str) -> datetime:
     return base + days
 
 #------------------------------------------------------------------------------
+class Kategorie(Enum):
+    Alleinerziehend = 'Alleinerziehend'
+    Ehepaar = 'Ehepaar/Lebensgemeinschaft'
+    Familie = 'Familie'
+    Student = 'Schüler/ Azubi/ Student'
+    Rentner = 'Rentner'
+    Mitglied = 'Mitglied'
+
 class Mitglied(NamedTuple):
     mitgliedsnummer: int
     vorname: str
     nachname: str
     geburtsdatum: datetime
-    hauptzahler: int = 0
+    aktiv: bool
+    hauptzahler: int
+    kategorie : Kategorie
 
 def MemberFromRow(row: dict[str, str]) -> Mitglied:
     return Mitglied(
@@ -23,7 +34,9 @@ def MemberFromRow(row: dict[str, str]) -> Mitglied:
         vorname=row["Vorname"],
         nachname=row["Nachname"],
         geburtsdatum=asDate(row["Geburtsdatum"]),
-        hauptzahler=int(row["Hauptzahler Mitgliedsnummer"])
+        aktiv=row["Status"] == "Aktivmitglied",
+        hauptzahler=int(row["Hauptzahler Mitgliedsnummer"]),
+        kategorie=Kategorie(row["Beitragskategorie"])
     )
 
 def toCSV(mitglied: Mitglied) -> str:
@@ -32,7 +45,7 @@ def toCSV(mitglied: Mitglied) -> str:
 {mitglied.vorname};\
 {mitglied.nachname};\
 {mitglied.geburtsdatum.strftime("%Y-%m-%d")};\
-{mitglied.hauptzahler}'
+{mitglied.kategorie}'
 
 def getAge(member: Mitglied) -> int:
     today = date.today()
@@ -40,8 +53,37 @@ def getAge(member: Mitglied) -> int:
         ((today.month, today.day) < (member.geburtsdatum.month, member.geburtsdatum.day))
     return age
 
+def isHauptzahler(member: Mitglied) -> bool:
+    return member.mitgliedsnummer == member.hauptzahler
+
 def isKind(member: Mitglied) -> bool:
     return getAge(member) < 18
+
+#------------------------------------------------------------------------------
+def calcBeitragHauptVerein_single(member: Mitglied) -> int:
+    if member.aktiv == False: return 3000
+
+    if isKind(member): return 5500
+
+    if member.kategorie == Kategorie.Rentner: return 7200
+    if member.kategorie == Kategorie.Student: return 5500
+    if member.kategorie == Kategorie.Familie:
+        if isHauptzahler(member): return 16500
+        else: return 0
+
+    return 8500
+
+def calcBeitragHauptVerein_all(members: list[Mitglied]) -> int:
+    return sum(calcBeitragHauptVerein_single(member) for member in members)
+
+#------------------------------------------------------------------------------
+def getHauptzahler(members: dict[int, Mitglied]) -> dict[int, list[Mitglied]]:
+    hauptzahler = {}
+    for member in members.values():
+        if member.hauptzahler not in hauptzahler:
+            hauptzahler[member.hauptzahler] = []
+        hauptzahler[member.hauptzahler].append(member)
+    return hauptzahler
 
 #------------------------------------------------------------------------------
 def read_csv(file_path) -> dict[int, Mitglied]:
@@ -64,4 +106,13 @@ members = read_csv(args.inp)
 print(f'Fertig. {len(members)} mitglieder geladen.')
 
 jemand = members[2980]
-print(f'Beispiel Mitglied: [{toCSV(jemand)}] Alter: {getAge(jemand)}')
+# print(f'Beispiel Mitglied: [{toCSV(jemand)}] Alter: {getAge(jemand)}')
+
+hauptzahler = getHauptzahler(members)
+print(f'Anzahl Hauptzahler: {len(hauptzahler)}')
+
+familie = hauptzahler[jemand.hauptzahler]
+beitrag = calcBeitragHauptVerein_all(familie)
+print(f'Beitrag Hauptverein für {jemand.vorname} {jemand.nachname}: {beitrag/100:.2f} EUR')
+for mitglied in familie:
+    print(f'  - {toCSV(mitglied)}')
