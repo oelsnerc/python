@@ -1,5 +1,4 @@
 import argparse
-from ast import main
 import csv
 from typing import NamedTuple
 from enum import Enum
@@ -90,23 +89,18 @@ def calcBeitragHauptVerein_all(members: list[Mitglied]) -> int:
     return sum(calcBeitragHauptVerein_single(member) for member in members)
 
 #------------------------------------------------------------------------------
-def getHauptzahler(members: dict[int, Mitglied]) -> dict[int, list[Mitglied]]:
-    hauptzahler = {}
-    for member in members.values():
-        if member.hauptzahler not in hauptzahler:
-            hauptzahler[member.hauptzahler] = []
-        hauptzahler[member.hauptzahler].append(member)
-    return hauptzahler
-
-#------------------------------------------------------------------------------
-def read_csv(file_path) -> dict[int, Mitglied]:
+def read_csv(file_path) -> tuple[dict[int, Mitglied], dict[int, list[Mitglied]]]:
     members = {}
+    hauptzahler = {}
     with open(file_path, mode='r', encoding='utf-8-sig', newline='') as csvfile:
         csvreader = csv.DictReader(csvfile, delimiter=';')
         for row in csvreader:
             member = MemberFromRow(row)
             members[member.mitgliedsnummer] = member
-    return members
+            if member.hauptzahler not in hauptzahler:
+                hauptzahler[member.hauptzahler] = []
+            hauptzahler[member.hauptzahler].append(member)
+    return members, hauptzahler
 
 #------------------------------------------------------------------------------
 def writeMemberCSV(csvwriter, hauptZahlerNummer: str, member: Mitglied, hauptvereinBeitrag: int) -> None:
@@ -156,10 +150,8 @@ argParser.add_argument('-d', '--debug', help='Schreib Familien in die Beitragsli
 args = argParser.parse_args()
 
 print(f'Lese {args.input} ...')
-members = read_csv(args.input)
-print(f'Anzahl Mitglieder: {len(members)}')
-
-hauptzahler = getHauptzahler(members)
+members, hauptzahler = read_csv(args.input)
+print(f'Anzahl Mitglieder : {len(members)}')
 print(f'Anzahl Hauptzahler: {len(hauptzahler)}')
 
 print(f'Schreibe {args.output} ...')
