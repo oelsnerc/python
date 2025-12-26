@@ -1,4 +1,5 @@
 import argparse
+from ast import main
 import csv
 from typing import NamedTuple
 from enum import Enum
@@ -19,6 +20,13 @@ class Kategorie(Enum):
     Rentner = 'Rentner'
     Mitglied = 'Mitglied'
 
+class Abteilung(Enum):
+    Tennis = 'Tennis'
+    Tischtennis = 'Tischtennis'
+    Turnen = 'Turnen'
+    Tanzen = 'Tanzen'
+    RehaSport = 'Behinderten- u. Rehasport'
+
 class Mitglied(NamedTuple):
     mitgliedsnummer: int
     vorname: str
@@ -27,6 +35,7 @@ class Mitglied(NamedTuple):
     aktiv: bool
     hauptzahler: int
     kategorie : Kategorie
+    abteilung: Abteilung
 
 def MemberFromRow(row: dict[str, str]) -> Mitglied:
     return Mitglied(
@@ -36,7 +45,8 @@ def MemberFromRow(row: dict[str, str]) -> Mitglied:
         geburtsdatum=asDate(row["Geburtsdatum"]),
         aktiv=row["Status"] == "Aktivmitglied",
         hauptzahler=int(row["Hauptzahler Mitgliedsnummer"]),
-        kategorie=Kategorie(row["Beitragskategorie"])
+        kategorie=Kategorie(row["Beitragskategorie"]),
+        abteilung=Abteilung(row["Abteilung"])
     )
 
 def toCSV(mitglied: Mitglied) -> str:
@@ -58,6 +68,9 @@ def isHauptzahler(member: Mitglied) -> bool:
 
 def isKind(member: Mitglied) -> bool:
     return getAge(member) < 18
+
+def findHauptzahler(hauptzahlerNummer: int, familie: list[Mitglied]) -> Mitglied | None:
+    return next((member for member in familie if member.mitgliedsnummer == hauptzahlerNummer), None)
 
 #------------------------------------------------------------------------------
 def calcBeitragHauptVerein_single(member: Mitglied) -> int:
@@ -88,7 +101,7 @@ def getHauptzahler(members: dict[int, Mitglied]) -> dict[int, list[Mitglied]]:
 #------------------------------------------------------------------------------
 def read_csv(file_path) -> dict[int, Mitglied]:
     members = {}
-    with open(file_path, mode='r', encoding='utf-8-sig') as csvfile:
+    with open(file_path, mode='r', encoding='utf-8-sig', newline='') as csvfile:
         csvreader = csv.DictReader(csvfile, delimiter=';')
         for row in csvreader:
             member = MemberFromRow(row)
@@ -96,23 +109,58 @@ def read_csv(file_path) -> dict[int, Mitglied]:
     return members
 
 #------------------------------------------------------------------------------
+def writeMemberCSV(csvwriter, hauptZahlerNummer: str, member: Mitglied, hauptvereinBeitrag: int) -> None:
+    csvwriter.writerow({
+        'Hauptzahler': hauptZahlerNummer,
+        'Vorname': member.vorname,
+        'Nachname': member.nachname,
+        'Mitgliedsnummer': member.mitgliedsnummer,
+        'Abteilung': member.abteilung.value,
+        'Status': 'aktiv' if member.aktiv else 'passiv',
+        'Alter': getAge(member),
+        'Beitragskategorie': member.kategorie.value,
+        'Hauptverein': hauptvereinBeitrag
+    })
+
+def writeHauptzahlerCSV(csvwriter, hauptZahler: Mitglied, familie: list[Mitglied]) -> None:
+    hauptvereinBeitrag = calcBeitragHauptVerein_all(familie)
+    writeMemberCSV(csvwriter, str(hauptZahler.mitgliedsnummer), hauptZahler, hauptvereinBeitrag)
+
+def writeFamilienCSV(csvwriter, familie: list[Mitglied]) -> None:
+    if len(familie) < 2: return
+    for member in familie:
+        writeMemberCSV(csvwriter, '    ', member, calcBeitragHauptVerein_single(member))
+
+def write_csv(file_path, hauptzahlerListe: dict[int, list[Mitglied]]) -> None:
+    with open(file_path, mode='w', encoding='utf-8-sig', newline='') as csvfile:
+        fieldnames = ['Hauptzahler', 'Vorname', 'Nachname', 'Mitgliedsnummer', 'Abteilung', 'Status', 'Alter', 'Beitragskategorie', 'Hauptverein']
+        csvwriter = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter=';')
+        csvwriter.writeheader()
+
+        for hauptZahlerNummer, familie in hauptzahlerListe.items():
+            hauptZahler = findHauptzahler(hauptZahlerNummer, familie)
+            if hauptZahler is None:
+                print(f'Warnung: Kein Hauptzahler mit Mitgliedsnummer {hauptZahlerNummer} gefunden.')
+                continue
+
+            writeHauptzahlerCSV(csvwriter, hauptZahler, familie)
+            if args.debug:
+                writeFamilienCSV(csvwriter, familie)
+
+#------------------------------------------------------------------------------
 argParser = argparse.ArgumentParser("CSV test")
-argParser.add_argument('inp', help='csv datei', type=str)
+argParser.add_argument('-i', '--input', help='Mitgliederliste als csv Datei', type=str, required=True)
+argParser.add_argument('-o', '--output', help='Ergebnis der Beitragsliste als csv Datei', type=str, required=True)
+argParser.add_argument('-d', '--debug', help='Schreib Familien in die Beitragsliste', action='store_true')
 
 args = argParser.parse_args()
 
-print(f'Lese {args.inp} ...')
-members = read_csv(args.inp)
-print(f'Fertig. {len(members)} mitglieder geladen.')
-
-jemand = members[2980]
-# print(f'Beispiel Mitglied: [{toCSV(jemand)}] Alter: {getAge(jemand)}')
+print(f'Lese {args.input} ...')
+members = read_csv(args.input)
+print(f'Anzahl Mitglieder: {len(members)}')
 
 hauptzahler = getHauptzahler(members)
 print(f'Anzahl Hauptzahler: {len(hauptzahler)}')
 
-familie = hauptzahler[jemand.hauptzahler]
-beitrag = calcBeitragHauptVerein_all(familie)
-print(f'Beitrag Hauptverein für {jemand.vorname} {jemand.nachname}: {beitrag/100:.2f} EUR')
-for mitglied in familie:
-    print(f'  - {toCSV(mitglied)}')
+print(f'Schreibe {args.output} ...')
+write_csv(args.output, hauptzahler)

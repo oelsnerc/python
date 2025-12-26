@@ -4,14 +4,21 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-
         {
             "name": "Python Debugger: Current File with Arguments",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": "C:/Users/Chris/Documents/python/2025_12_22_DjK_Beitragsliste.csv"
+            "args": "-i C:/Users/Chris/Documents/djk/2025_12_22_DjK_Mitglieder.csv -o C:/Users/Chris/Documents/djk/2025_12_22_DjK_Beitragsliste.csv"
+        },
+        {
+            "name": "Python Debugger: main with Arguments",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/mitgliedsbeitrag.py",
+            "console": "integratedTerminal",
+            "args": "-d -i C:/Users/Chris/Documents/djk/2025_12_22_DjK_Mitglieder.csv -o C:/Users/Chris/Documents/djk/2025_12_22_DjK_Beitragsliste.csv"
         }
     ]
 }
