@@ -25,6 +25,7 @@ class Abteilung(Enum):
     Turnen = 'Turnen'
     Tanzen = 'Tanzen'
     RehaSport = 'Behinderten- u. Rehasport'
+    Wandern = 'Wandern'
 
 class Mitglied(NamedTuple):
     mitgliedsnummer: int
@@ -68,25 +69,125 @@ def isHauptzahler(member: Mitglied) -> bool:
 def isKind(member: Mitglied) -> bool:
     return getAge(member) < 18
 
-def findHauptzahler(hauptzahlerNummer: int, familie: list[Mitglied]) -> Mitglied | None:
-    return next((member for member in familie if member.mitgliedsnummer == hauptzahlerNummer), None)
+def getHauptzahler(familie: list[Mitglied]) -> Mitglied:
+    hauptzahler =  next((member for member in familie if member.mitgliedsnummer == member.hauptzahler), None)
+    if hauptzahler is None:
+        raise ValueError(f'Kein Hauptzahler in der Familie gefunden\n{[toCSV(m) for m in familie]}')
+    return hauptzahler
 
+#------------------------------------------------------------------------------
+# * Tennis Aktiv                  >= 18 Jahre             15500 Mitglied
+# * Tennis Aktiv                  < 18 Jahre               9600 Mitglied
+# * Tennis Aktiv  Ehepaare                                28000 Hauptzahler
+# * Tennis Aktiv  Student         < 27 Jahre               9600 Mitglied
+# * Tennis Aktiv  Familie         2 Erwachsene + 1 Kind   30000 Hauptzahler
+# * Tennis Aktiv  Familie         weitere Kinder           4000 Hauptzahler
+# * Tennis Aktiv  Alleinerziehend 1 Erwachsener + 1 Kind  20000 Hauptzahler
+# * Tennis Aktiv  Alleinerziehend weitere Kinder           4000 Hauptzahler
+#   Tennis Aktiv                  >= 16 Jahre              4500 Mitglied    <---- Not used?
+# * Tennis Passiv                 < 14 Jahre                600 Mitglied
+# * Tennis Passiv                 < 18 Jahre               1800 Mitglied
+# * Tennis Passiv                 >= 18 Jahre              2900 Mitglied
+# * Tennis Passiv Student                                  1800 Hauptzahler
+#------------------------------------------------------------------------------
+def calcBeitragTennis_passive(member: Mitglied) -> int:
+    if member.kategorie == Kategorie.Student: return 1800
+    age = getAge(member)
+    if age < 14: return 600
+    if age < 18: return 1800
+    return 2900
+
+def calcBeitragTennis_familie(member: Mitglied) -> int:
+    beitragKind = 4000
+    if isKind(member): return beitragKind
+    if isHauptzahler(member): return 30000 - beitragKind
+    return 0    # the other adult in the family
+
+def calcBeitragTennis_singleParent(member: Mitglied) -> int:
+    beitragKind = 4000
+    if isHauptzahler(member): return 20000 - beitragKind
+    # if isKind(member): return beitragKind
+    # raise ValueError(f'Alleinerziehend und weiterer Erwachsener? {toCSV(member)}')
+    return beitragKind  # for the child (not matter the age)
+
+def calcBeitragTennis_single(member: Mitglied) -> int:
+    if member.aktiv == False: return calcBeitragTennis_passive(member)
+
+    # active members only
+    if member.kategorie == Kategorie.Student:
+        if getAge(member) < 27: return 9600
+        else: return 15500
+
+    if member.kategorie == Kategorie.Ehepaar:
+        if (isHauptzahler(member)): return 28000
+        else: return 0  # the other half of the couple
+
+    if member.kategorie == Kategorie.Familie:
+        return calcBeitragTennis_familie(member)
+    
+    if member.kategorie == Kategorie.Alleinerziehend:
+        return calcBeitragTennis_singleParent(member)
+    
+    if isKind(member): return 9600
+    return 15500
+
+#------------------------------------------------------------------------------
+# Tischtennis Aktiv < 18 Jahre      6000 Mitglied
+# Tischtennis Aktiv >= 18 Jahre     8000 Mitglied
+#------------------------------------------------------------------------------
+def calcBeitragTischtennis_single(member: Mitglied) -> int:
+    if member.aktiv == False: return 0
+
+    if isKind(member): return 6000
+    return 8000
+
+#------------------------------------------------------------------------------
+# Wandern Aktiv                     3500 Mitglied
+#------------------------------------------------------------------------------
+def calcBeitragWandern_single(member: Mitglied) -> int:
+    if member.aktiv == False: return 0
+    return 3500 
+
+#------------------------------------------------------------------------------
+def calcBeitragAbteilung_single(member: Mitglied) -> int:
+    if member.abteilung == Abteilung.Tennis: return calcBeitragTennis_single(member)
+    if member.abteilung == Abteilung.Tischtennis: return calcBeitragTischtennis_single(member)
+    if member.abteilung == Abteilung.Wandern: return calcBeitragWandern_single(member)
+
+    if member.abteilung in {Abteilung.Turnen, Abteilung.Tanzen, Abteilung.RehaSport}:
+        print(f'Beitragsberechnung für Abteilung {member.abteilung.value} nicht implementiert {toCSV(member)}')
+        return 0
+    raise ValueError(f'Unbekannte Abteilung {member.abteilung} für Mitglied {toCSV(member)}')
+
+def calcBeitragAbteilung_all(familie: list[Mitglied]) -> int:
+   return sum(calcBeitragAbteilung_single(member) for member in familie)
+
+#------------------------------------------------------------------------------
+# Hauptverein Aktiv           < 18 Jahre                                   5500   Mitglied
+# Hauptverein Aktiv           >= 18 Jahre                                  8500   Mitglied
+# Hauptverein Aktiv   Student                                              5500   Mitglied
+# Hauptverein Aktiv   Rentner >=65 Jahre                                   7200   Mitglied
+# Hauptverein Aktiv   Familie beide Eltern mit mind 1 minderjährigen Kind 16500   Hauptzahler
+# Hauptverein Passiv                                                       3000   Mitglied
 #------------------------------------------------------------------------------
 def calcBeitragHauptVerein_single(member: Mitglied) -> int:
     if member.aktiv == False: return 3000
 
-    if isKind(member): return 5500
-
-    if member.kategorie == Kategorie.Rentner: return 7200
     if member.kategorie == Kategorie.Student: return 5500
+
+    if member.kategorie == Kategorie.Rentner:
+        if getAge(member) >= 65: return 7200
+        else: return 8500
+
     if member.kategorie == Kategorie.Familie:
         if isHauptzahler(member): return 16500
         else: return 0
 
+    if isKind(member): return 5500
     return 8500
 
-def calcBeitragHauptVerein_all(members: list[Mitglied]) -> int:
-    return sum(calcBeitragHauptVerein_single(member) for member in members)
+def calcBeitragHauptVerein_all(familie: list[Mitglied]) -> int:
+    return sum(calcBeitragHauptVerein_single(member) for member in familie)
 
 #------------------------------------------------------------------------------
 def read_csv(file_path) -> tuple[dict[int, Mitglied], dict[int, list[Mitglied]]]:
@@ -103,7 +204,7 @@ def read_csv(file_path) -> tuple[dict[int, Mitglied], dict[int, list[Mitglied]]]
     return members, hauptzahler
 
 #------------------------------------------------------------------------------
-def writeMemberCSV(csvwriter, hauptZahlerNummer: str, member: Mitglied, hauptvereinBeitrag: int) -> None:
+def writeMemberCSV(csvwriter, hauptZahlerNummer: str, member: Mitglied, hauptvereinBeitrag: int, abteilungBeitrag: int) -> None:
     csvwriter.writerow({
         'Hauptzahler': hauptZahlerNummer,
         'Vorname': member.vorname,
@@ -113,29 +214,29 @@ def writeMemberCSV(csvwriter, hauptZahlerNummer: str, member: Mitglied, hauptver
         'Status': 'aktiv' if member.aktiv else 'passiv',
         'Alter': getAge(member),
         'Beitragskategorie': member.kategorie.value,
-        'Hauptverein': hauptvereinBeitrag
+        'Hauptverein': hauptvereinBeitrag,
+        'Abteilung': abteilungBeitrag,
+        'Gesamt': hauptvereinBeitrag + abteilungBeitrag
     })
 
 def writeHauptzahlerCSV(csvwriter, hauptZahler: Mitglied, familie: list[Mitglied]) -> None:
     hauptvereinBeitrag = calcBeitragHauptVerein_all(familie)
-    writeMemberCSV(csvwriter, str(hauptZahler.mitgliedsnummer), hauptZahler, hauptvereinBeitrag)
+    abteilungBeitrag = calcBeitragAbteilung_all(familie)
+    writeMemberCSV(csvwriter, str(hauptZahler.mitgliedsnummer), hauptZahler, hauptvereinBeitrag, abteilungBeitrag)
 
 def writeFamilienCSV(csvwriter, familie: list[Mitglied]) -> None:
     if len(familie) < 2: return
     for member in familie:
-        writeMemberCSV(csvwriter, '    ', member, calcBeitragHauptVerein_single(member))
+        writeMemberCSV(csvwriter, '    ', member, calcBeitragHauptVerein_single(member), calcBeitragAbteilung_single(member))
 
 def write_csv(file_path, hauptzahlerListe: dict[int, list[Mitglied]]) -> None:
     with open(file_path, mode='w', encoding='utf-8-sig', newline='') as csvfile:
-        fieldnames = ['Hauptzahler', 'Vorname', 'Nachname', 'Mitgliedsnummer', 'Abteilung', 'Status', 'Alter', 'Beitragskategorie', 'Hauptverein']
+        fieldnames = ['Hauptzahler', 'Vorname', 'Nachname', 'Mitgliedsnummer', 'Abteilung', 'Status', 'Alter', 'Beitragskategorie', 'Hauptverein', 'Abteilung', 'Gesamt']
         csvwriter = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter=';')
         csvwriter.writeheader()
 
-        for hauptZahlerNummer, familie in hauptzahlerListe.items():
-            hauptZahler = findHauptzahler(hauptZahlerNummer, familie)
-            if hauptZahler is None:
-                print(f'Warnung: Kein Hauptzahler mit Mitgliedsnummer {hauptZahlerNummer} gefunden.')
-                continue
+        for familie in hauptzahlerListe.values():
+            hauptZahler = getHauptzahler(familie)
 
             writeHauptzahlerCSV(csvwriter, hauptZahler, familie)
             if args.debug:
