@@ -155,7 +155,7 @@ def calcBeitragAbteilung_single(member: Mitglied) -> int:
     if member.abteilung == Abteilung.Wandern: return calcBeitragWandern_single(member)
 
     if member.abteilung in {Abteilung.Turnen, Abteilung.Tanzen, Abteilung.RehaSport}:
-        print(f'Beitragsberechnung für Abteilung {member.abteilung.value} nicht implementiert {toCSV(member)}')
+        # print(f'Beitragsberechnung für Abteilung {member.abteilung.value} nicht implementiert {toCSV(member)}')
         return 0
     raise ValueError(f'Unbekannte Abteilung {member.abteilung} für Mitglied {toCSV(member)}')
 
@@ -188,6 +188,84 @@ def calcBeitragHauptVerein_single(member: Mitglied) -> int:
 
 def calcBeitragHauptVerein_all(familie: list[Mitglied]) -> int:
     return sum(calcBeitragHauptVerein_single(member) for member in familie)
+
+#------------------------------------------------------------------------------
+#                               Anzahl Mitglieder je Kategorie	Häufigkeit
+# Kategorie                     >18 Jahre   < 18 Jahre  < 28 Jahre  > 65 Jahre  Hauptzahler ID
+# Familie                       = 2         > 0         = 0         = 0         > 1
+# Alleinerziehend               = 1         > 0         = 0         = 0         > 1
+# Ehepaar/Lebensgemeinschaft    = 2         = 0         = 0         = 0         = 2
+# Schüler/ Azubi/ Student       = 0         = 0         = 1         = 0         = 1
+# Rentner                       = 0         = 0         = 0         = 1         = 1
+# ohne obige Kategorie:
+# Mitglied                      = 1         = 0         = 0         = 0         = 1
+#------------------------------------------------------------------------------
+def checkConstraints_Familie(familie: list[Mitglied]) -> None:
+    countErwachsene = sum(1 for m in familie if getAge(m) >= 18)
+    countKinder = sum(1 for m in familie if getAge(m) < 18)
+    if countErwachsene != 2:
+        raise ValueError(f'Familie muss aus 2 Erwachsenen bestehen {toCSV(getHauptzahler(familie))}')
+    if countKinder < 1:
+        raise ValueError(f'Familie muss aus mindestens 1 Kind bestehen {toCSV(getHauptzahler(familie))}')
+    if countErwachsene + countKinder != len(familie):
+        raise ValueError(f'Familie darf nur aus Erwachsenen und Kindern bestehen {toCSV(getHauptzahler(familie))}')
+
+def checkConstraints_Alleinerziehend(familie: list[Mitglied]) -> None:
+    countErwachsene = sum(1 for m in familie if getAge(m) >= 18)
+    countKinder = sum(1 for m in familie if getAge(m) < 18)
+    if countErwachsene != 1:
+        raise ValueError(f'Alleinerziehend muss aus 1 Erwachsenen bestehen {toCSV(getHauptzahler(familie))}')
+    if countKinder < 1:
+        raise ValueError(f'Alleinerziehend muss aus mindestens 1 Kind bestehen {toCSV(getHauptzahler(familie))}')
+    if countErwachsene + countKinder != len(familie):
+        raise ValueError(f'Alleinerziehend darf nur aus Erwachsenen und Kindern bestehen {toCSV(getHauptzahler(familie))}')
+
+def checkConstraints_Ehepaar(familie: list[Mitglied]) -> None:
+    countErwachsene = sum(1 for m in familie if getAge(m) >= 18)
+    if countErwachsene != 2:
+        raise ValueError(f'Ehepaar muss aus 2 Erwachsenen bestehen {toCSV(getHauptzahler(familie))}')
+    if len(familie) != 2:
+        raise ValueError(f'Ehepaar darf nur aus 2 Erwachsenen bestehen {toCSV(getHauptzahler(familie))}')
+
+def checkConstraints_Student(familie: list[Mitglied]) -> None:
+    countErwachsene = sum(1 for m in familie if getAge(m) >= 27)
+    if countErwachsene != 0:
+        raise ValueError(f'Studenten dürfen nicht älter als 27 Jahre sein {toCSV(getHauptzahler(familie))}')
+    if len(familie) != 1:
+        raise ValueError(f'Studenten müssen für sich selber zahlen {toCSV(getHauptzahler(familie))}')
+
+def checkConstraints_Rentner(familie: list[Mitglied]) -> None:
+    countErwachsene = sum(1 for m in familie if getAge(m) < 65)
+    if countErwachsene != 0:
+        raise ValueError(f'Rentner müssen mindestens 65 Jahre alt sein {toCSV(getHauptzahler(familie))}')
+    if len(familie) != 1:
+        raise ValueError(f'Rentner müssen für sich selber zahlen {toCSV(getHauptzahler(familie))}')
+
+def checkContraintsGroup(familie: list[Mitglied]) -> None:
+    hauptzahler = getHauptzahler(familie)
+
+    hauptKategorie = hauptzahler.kategorie
+    checkKategorie = all(m.kategorie == hauptKategorie for m in familie)
+    if not checkKategorie:
+        raise ValueError(f'Alle Mitglieder für einen Hauptzahler müssen die gleiche Beitragskategorie haben {toCSV(hauptzahler)}')
+
+    if hauptzahler.kategorie == Kategorie.Familie: return checkConstraints_Familie(familie)
+    if hauptzahler.kategorie == Kategorie.Alleinerziehend: return checkConstraints_Alleinerziehend(familie)
+    if hauptzahler.kategorie == Kategorie.Ehepaar: return checkConstraints_Ehepaar(familie)
+    if hauptzahler.kategorie == Kategorie.Student: return checkConstraints_Student(familie)
+    if hauptzahler.kategorie == Kategorie.Rentner: return checkConstraints_Rentner(familie)
+    if hauptzahler.kategorie == Kategorie.Mitglied:
+        if len(familie) == 1: return
+        raise ValueError(f'Mitglied muss das einzige Mitglied der Familie sein {toCSV(hauptzahler)}')
+    
+    raise ValueError(f'Unbekannte Beitragskategorie {hauptzahler.kategorie} für Hauptzahler {toCSV(hauptzahler)}')
+
+def checkContraints(hauptzahler: dict[int, list[Mitglied]]) -> None:
+    for familie in hauptzahler.values():
+        try:
+            checkContraintsGroup(familie)
+        except ValueError as exception:
+            print(exception)
 
 #------------------------------------------------------------------------------
 def read_csv(file_path) -> tuple[dict[int, Mitglied], dict[int, list[Mitglied]]]:
@@ -254,6 +332,8 @@ print(f'Lese {args.input} ...')
 members, hauptzahler = read_csv(args.input)
 print(f'Anzahl Mitglieder : {len(members)}')
 print(f'Anzahl Hauptzahler: {len(hauptzahler)}')
+
+checkContraints(hauptzahler)
 
 print(f'Schreibe {args.output} ...')
 write_csv(args.output, hauptzahler)
