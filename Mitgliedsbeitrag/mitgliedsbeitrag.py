@@ -6,9 +6,14 @@ from datetime import date, timedelta, datetime
 
 #------------------------------------------------------------------------------
 def asDate(date_str: str) -> datetime:
-    days = timedelta(days=int(date_str))
-    base = datetime(1899, 12, 30)
-    return base + days
+    # days = timedelta(days=int(date_str))
+    # base = datetime(1899, 12, 30)
+    # return base + days
+    return datetime.strptime(date_str, "%d.%m.%Y")
+
+def asInt(value_str: str) -> int:
+    if value_str == '': return 0
+    return int(value_str.replace('.', '').replace(',', '')) 
 
 #------------------------------------------------------------------------------
 class Kategorie(Enum):
@@ -39,12 +44,12 @@ class Mitglied(NamedTuple):
 
 def MemberFromRow(row: dict[str, str]) -> Mitglied:
     return Mitglied(
-        mitgliedsnummer=int(row["Mitgliedsnummer"]),
+        mitgliedsnummer=asInt(row["Mitgliedsnummer"]),
         vorname=row["Vorname"],
         nachname=row["Nachname"],
         geburtsdatum=asDate(row["Geburtsdatum"]),
         aktiv=row["Status"] == "Aktivmitglied",
-        hauptzahler=int(row["Hauptzahler Mitgliedsnummer"]),
+        hauptzahler=asInt(row["Hauptzahler Mitgliedsnummer"]),
         kategorie=Kategorie(row["Beitragskategorie"]),
         abteilung=Abteilung(row["Abteilung"])
     )
@@ -271,7 +276,7 @@ def checkContraints(hauptzahler: dict[int, list[Mitglied]]) -> None:
 def read_csv(file_path) -> tuple[dict[int, Mitglied], dict[int, list[Mitglied]]]:
     members = {}
     hauptzahler = {}
-    with open(file_path, mode='r', encoding='utf-8-sig', newline='') as csvfile:
+    with open(file_path, mode='r', encoding='ansi', newline='') as csvfile:
         csvreader = csv.DictReader(csvfile, delimiter=';')
         for row in csvreader:
             member = MemberFromRow(row)
@@ -292,8 +297,8 @@ def writeMemberCSV(csvwriter, hauptZahlerNummer: str, member: Mitglied, hauptver
         'Status': 'aktiv' if member.aktiv else 'passiv',
         'Alter': getAge(member),
         'Beitragskategorie': member.kategorie.value,
-        'Hauptverein': hauptvereinBeitrag,
-        'Abteilung': abteilungBeitrag,
+        'BeitragHauptverein': hauptvereinBeitrag,
+        'BeitragAbteilung': abteilungBeitrag,
         'Gesamt': hauptvereinBeitrag + abteilungBeitrag
     })
 
@@ -309,7 +314,7 @@ def writeFamilienCSV(csvwriter, familie: list[Mitglied]) -> None:
 
 def write_csv(file_path, hauptzahlerListe: dict[int, list[Mitglied]]) -> None:
     with open(file_path, mode='w', encoding='utf-8-sig', newline='') as csvfile:
-        fieldnames = ['Hauptzahler', 'Vorname', 'Nachname', 'Mitgliedsnummer', 'Abteilung', 'Status', 'Alter', 'Beitragskategorie', 'Hauptverein', 'Abteilung', 'Gesamt']
+        fieldnames = ['Hauptzahler', 'Vorname', 'Nachname', 'Mitgliedsnummer', 'Abteilung', 'Status', 'Alter', 'Beitragskategorie', 'BeitragHauptverein', 'BeitragAbteilung', 'Gesamt']
         csvwriter = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter=';')
         csvwriter.writeheader()
 
