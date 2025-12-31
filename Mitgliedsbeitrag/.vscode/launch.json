@@ -18,7 +18,6 @@
             "request": "launch",
             "program": "${workspaceFolder}/mitgliedsbeitrag.py",
             "console": "integratedTerminal",
-            //"args": "-d -i C:/Users/Chris/Documents/djk/2025_12_22_DjK_Mitglieder.csv -o C:/Users/Chris/Documents/djk/2025_12_22_DjK_Beitragsliste.csv"
             "args": "-d -i C:/Users/Chris/Documents/djk/30_12_2025_DJK_bw_Mitgliederdaten.csv -o C:/Users/Chris/Documents/djk/2025_12_22_DjK_Beitragsliste.csv"
         }
     ]

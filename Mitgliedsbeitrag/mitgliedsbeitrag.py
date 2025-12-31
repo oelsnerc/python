@@ -340,7 +340,7 @@ def write_csv(file_path, hauptzahlerListe: dict[int, list[Mitglied]]) -> None:
                 writeGruppenCSV(csvwriter, gruppe)
 
 #------------------------------------------------------------------------------
-argParser = argparse.ArgumentParser("CSV test")
+argParser = argparse.ArgumentParser("Mitgliedsbeitrag Berechnung")
 argParser.add_argument('-i', '--input', help='Mitgliederliste als csv Datei', type=str, required=True)
 argParser.add_argument('-o', '--output', help='Ergebnis der Beitragsliste als csv Datei', type=str, required=True)
 argParser.add_argument('-d', '--debug', help='Schreib Familien in die Beitragsliste', action='store_true')
