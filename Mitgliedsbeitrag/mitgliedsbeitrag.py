@@ -20,7 +20,8 @@ class Kategorie(Enum):
     Alleinerziehend = 'Alleinerziehend'
     Ehepaar = 'Ehepaar/Lebensgemeinschaft'
     Familie = 'Familie'
-    Student = 'Schüler/ Azubi/ Student'
+    Student = 'Schï¿½ler/ Azubi/ Student'
+    # Student = 'Schüler/ Azubi/ Student'
     Rentner = 'Rentner'
     Mitglied = 'Mitglied'
 
@@ -74,10 +75,10 @@ def isHauptzahler(member: Mitglied) -> bool:
 def isKind(member: Mitglied) -> bool:
     return getAge(member) < 18
 
-def getHauptzahler(familie: list[Mitglied]) -> Mitglied:
-    hauptzahler =  next((member for member in familie if member.mitgliedsnummer == member.hauptzahler), None)
+def getHauptzahler(gruppe: list[Mitglied]) -> Mitglied:
+    hauptzahler =  next((member for member in gruppe if member.mitgliedsnummer == member.hauptzahler), None)
     if hauptzahler is None:
-        raise ValueError(f'Kein Hauptzahler in der Familie gefunden\n{[toCSV(m) for m in familie]}')
+        raise ValueError(f'Kein Hauptzahler in der Familie gefunden\n{[toCSV(m) for m in gruppe]}')
     return hauptzahler
 
 #------------------------------------------------------------------------------
@@ -164,8 +165,8 @@ def calcBeitragAbteilung_single(member: Mitglied) -> int:
         return 0
     raise ValueError(f'Unbekannte Abteilung {member.abteilung} für Mitglied {toCSV(member)}')
 
-def calcBeitragAbteilung_all(familie: list[Mitglied]) -> int:
-   return sum(calcBeitragAbteilung_single(member) for member in familie)
+def calcBeitragAbteilung_all(gruppe: list[Mitglied]) -> int:
+   return sum(calcBeitragAbteilung_single(member) for member in gruppe)
 
 #------------------------------------------------------------------------------
 # Hauptverein Aktiv           < 18 Jahre                                   5500   Mitglied
@@ -191,8 +192,8 @@ def calcBeitragHauptVerein_single(member: Mitglied) -> int:
     if isKind(member): return 5500
     return 8500
 
-def calcBeitragHauptVerein_all(familie: list[Mitglied]) -> int:
-    return sum(calcBeitragHauptVerein_single(member) for member in familie)
+def calcBeitragHauptVerein_all(gruppe: list[Mitglied]) -> int:
+    return sum(calcBeitragHauptVerein_single(member) for member in gruppe)
 
 #------------------------------------------------------------------------------
 #                               Anzahl Mitglieder je Kategorie	Häufigkeit
@@ -205,70 +206,70 @@ def calcBeitragHauptVerein_all(familie: list[Mitglied]) -> int:
 # ohne obige Kategorie:
 # Mitglied                      = 1         = 0         = 0         = 0         = 1
 #------------------------------------------------------------------------------
-def checkConstraints_Familie(familie: list[Mitglied]) -> None:
-    countErwachsene = sum(1 for m in familie if getAge(m) >= 18)
-    countKinder = sum(1 for m in familie if getAge(m) < 18)
+def checkConstraints_Familie(gruppe: list[Mitglied]) -> None:
+    countErwachsene = sum(1 for m in gruppe if getAge(m) >= 18)
+    countKinder = sum(1 for m in gruppe if getAge(m) < 18)
     if countErwachsene != 2:
-        raise ValueError(f'Familie muss aus 2 Erwachsenen bestehen {toCSV(getHauptzahler(familie))}')
+        raise ValueError(f'Familie muss aus 2 Erwachsenen bestehen {toCSV(getHauptzahler(gruppe))}')
     if countKinder < 1:
-        raise ValueError(f'Familie muss aus mindestens 1 Kind bestehen {toCSV(getHauptzahler(familie))}')
-    if countErwachsene + countKinder != len(familie):
-        raise ValueError(f'Familie darf nur aus Erwachsenen und Kindern bestehen {toCSV(getHauptzahler(familie))}')
+        raise ValueError(f'Familie muss aus mindestens 1 Kind bestehen {toCSV(getHauptzahler(gruppe))}')
+    if countErwachsene + countKinder != len(gruppe):
+        raise ValueError(f'Familie darf nur aus Erwachsenen und Kindern bestehen {toCSV(getHauptzahler(gruppe))}')
 
-def checkConstraints_Alleinerziehend(familie: list[Mitglied]) -> None:
-    countErwachsene = sum(1 for m in familie if getAge(m) >= 18)
-    countKinder = sum(1 for m in familie if getAge(m) < 18)
+def checkConstraints_Alleinerziehend(gruppe: list[Mitglied]) -> None:
+    countErwachsene = sum(1 for m in gruppe if getAge(m) >= 18)
+    countKinder = sum(1 for m in gruppe if getAge(m) < 18)
     if countErwachsene != 1:
-        raise ValueError(f'Alleinerziehend muss aus 1 Erwachsenen bestehen {toCSV(getHauptzahler(familie))}')
+        raise ValueError(f'Alleinerziehend muss aus 1 Erwachsenen bestehen {toCSV(getHauptzahler(gruppe))}')
     if countKinder < 1:
-        raise ValueError(f'Alleinerziehend muss aus mindestens 1 Kind bestehen {toCSV(getHauptzahler(familie))}')
-    if countErwachsene + countKinder != len(familie):
-        raise ValueError(f'Alleinerziehend darf nur aus Erwachsenen und Kindern bestehen {toCSV(getHauptzahler(familie))}')
+        raise ValueError(f'Alleinerziehend muss aus mindestens 1 Kind bestehen {toCSV(getHauptzahler(gruppe))}')
+    if countErwachsene + countKinder != len(gruppe):
+        raise ValueError(f'Alleinerziehend darf nur aus Erwachsenen und Kindern bestehen {toCSV(getHauptzahler(gruppe))}')
 
-def checkConstraints_Ehepaar(familie: list[Mitglied]) -> None:
-    countErwachsene = sum(1 for m in familie if getAge(m) >= 18)
+def checkConstraints_Ehepaar(gruppe: list[Mitglied]) -> None:
+    countErwachsene = sum(1 for m in gruppe if getAge(m) >= 18)
     if countErwachsene != 2:
-        raise ValueError(f'Ehepaar muss aus 2 Erwachsenen bestehen {toCSV(getHauptzahler(familie))}')
-    if len(familie) != 2:
-        raise ValueError(f'Ehepaar darf nur aus 2 Erwachsenen bestehen {toCSV(getHauptzahler(familie))}')
+        raise ValueError(f'Ehepaar muss aus 2 Erwachsenen bestehen {toCSV(getHauptzahler(gruppe))}')
+    if len(gruppe) != 2:
+        raise ValueError(f'Ehepaar darf nur aus 2 Erwachsenen bestehen {toCSV(getHauptzahler(gruppe))}')
 
-def checkConstraints_Student(familie: list[Mitglied]) -> None:
-    countErwachsene = sum(1 for m in familie if getAge(m) >= 27)
+def checkConstraints_Student(gruppe: list[Mitglied]) -> None:
+    countErwachsene = sum(1 for m in gruppe if getAge(m) >= 27)
     if countErwachsene != 0:
-        raise ValueError(f'Studenten dürfen nicht älter als 27 Jahre sein {toCSV(getHauptzahler(familie))}')
-    if len(familie) != 1:
-        raise ValueError(f'Studenten müssen für sich selber zahlen {toCSV(getHauptzahler(familie))}')
+        raise ValueError(f'Studenten dürfen nicht älter als 27 Jahre sein {toCSV(getHauptzahler(gruppe))}')
+    if len(gruppe) != 1:
+        raise ValueError(f'Studenten müssen für sich selber zahlen {toCSV(getHauptzahler(gruppe))}')
 
-def checkConstraints_Rentner(familie: list[Mitglied]) -> None:
-    countErwachsene = sum(1 for m in familie if getAge(m) < 65)
+def checkConstraints_Rentner(gruppe: list[Mitglied]) -> None:
+    countErwachsene = sum(1 for m in gruppe if getAge(m) < 65)
     if countErwachsene != 0:
-        raise ValueError(f'Rentner müssen mindestens 65 Jahre alt sein {toCSV(getHauptzahler(familie))}')
-    if len(familie) != 1:
-        raise ValueError(f'Rentner müssen für sich selber zahlen {toCSV(getHauptzahler(familie))}')
+        raise ValueError(f'Rentner müssen mindestens 65 Jahre alt sein {toCSV(getHauptzahler(gruppe))}')
+    if len(gruppe) != 1:
+        raise ValueError(f'Rentner müssen für sich selber zahlen {toCSV(getHauptzahler(gruppe))}')
 
-def checkContraintsGroup(familie: list[Mitglied]) -> None:
-    hauptzahler = getHauptzahler(familie)
+def checkContraintsGroup(gruppe: list[Mitglied]) -> None:
+    hauptzahler = getHauptzahler(gruppe)
 
     hauptKategorie = hauptzahler.kategorie
-    checkKategorie = all(m.kategorie == hauptKategorie for m in familie)
+    checkKategorie = all(m.kategorie == hauptKategorie for m in gruppe)
     if not checkKategorie:
         raise ValueError(f'Alle Mitglieder für einen Hauptzahler müssen die gleiche Beitragskategorie haben {toCSV(hauptzahler)}')
 
-    if hauptzahler.kategorie == Kategorie.Familie: return checkConstraints_Familie(familie)
-    if hauptzahler.kategorie == Kategorie.Alleinerziehend: return checkConstraints_Alleinerziehend(familie)
-    if hauptzahler.kategorie == Kategorie.Ehepaar: return checkConstraints_Ehepaar(familie)
-    if hauptzahler.kategorie == Kategorie.Student: return checkConstraints_Student(familie)
-    if hauptzahler.kategorie == Kategorie.Rentner: return checkConstraints_Rentner(familie)
+    if hauptzahler.kategorie == Kategorie.Familie: return checkConstraints_Familie(gruppe)
+    if hauptzahler.kategorie == Kategorie.Alleinerziehend: return checkConstraints_Alleinerziehend(gruppe)
+    if hauptzahler.kategorie == Kategorie.Ehepaar: return checkConstraints_Ehepaar(gruppe)
+    if hauptzahler.kategorie == Kategorie.Student: return checkConstraints_Student(gruppe)
+    if hauptzahler.kategorie == Kategorie.Rentner: return checkConstraints_Rentner(gruppe)
     if hauptzahler.kategorie == Kategorie.Mitglied:
-        if len(familie) == 1: return
-        raise ValueError(f'Mitglied muss das einzige Mitglied der Familie sein {toCSV(hauptzahler)}')
-    
+        if len(gruppe) == 1: return
+        raise ValueError(f'Mitglied muss das einzige Mitglied der Gruppe sein {toCSV(hauptzahler)}')
+
     raise ValueError(f'Unbekannte Beitragskategorie {hauptzahler.kategorie} für Hauptzahler {toCSV(hauptzahler)}')
 
 def checkContraints(hauptzahler: dict[int, list[Mitglied]]) -> None:
-    for familie in hauptzahler.values():
+    for gruppe in hauptzahler.values():
         try:
-            checkContraintsGroup(familie)
+            checkContraintsGroup(gruppe)
         except ValueError as exception:
             print(exception)
 
@@ -278,12 +279,15 @@ def read_csv(file_path) -> tuple[dict[int, Mitglied], dict[int, list[Mitglied]]]
     hauptzahler = {}
     with open(file_path, mode='r', encoding='ansi', newline='') as csvfile:
         csvreader = csv.DictReader(csvfile, delimiter=';')
-        for row in csvreader:
-            member = MemberFromRow(row)
-            members[member.mitgliedsnummer] = member
-            if member.hauptzahler not in hauptzahler:
-                hauptzahler[member.hauptzahler] = []
-            hauptzahler[member.hauptzahler].append(member)
+        try:
+            for row in csvreader:
+                member = MemberFromRow(row)
+                members[member.mitgliedsnummer] = member
+                if member.hauptzahler not in hauptzahler:
+                    hauptzahler[member.hauptzahler] = []
+                hauptzahler[member.hauptzahler].append(member)
+        except Exception as exception:
+            raise ValueError(f'{file_path}:{csvreader.line_num}: {exception}')
     return members, hauptzahler
 
 #------------------------------------------------------------------------------
@@ -302,14 +306,14 @@ def writeMemberCSV(csvwriter, hauptZahlerNummer: str, member: Mitglied, hauptver
         'Gesamt': hauptvereinBeitrag + abteilungBeitrag
     })
 
-def writeHauptzahlerCSV(csvwriter, hauptZahler: Mitglied, familie: list[Mitglied]) -> None:
-    hauptvereinBeitrag = calcBeitragHauptVerein_all(familie)
-    abteilungBeitrag = calcBeitragAbteilung_all(familie)
+def writeHauptzahlerCSV(csvwriter, hauptZahler: Mitglied, gruppe: list[Mitglied]) -> None:
+    hauptvereinBeitrag = calcBeitragHauptVerein_all(gruppe)
+    abteilungBeitrag = calcBeitragAbteilung_all(gruppe)
     writeMemberCSV(csvwriter, str(hauptZahler.mitgliedsnummer), hauptZahler, hauptvereinBeitrag, abteilungBeitrag)
 
-def writeFamilienCSV(csvwriter, familie: list[Mitglied]) -> None:
-    if len(familie) < 2: return
-    for member in familie:
+def writeGruppenCSV(csvwriter, gruppe: list[Mitglied]) -> None:
+    if len(gruppe) < 2: return
+    for member in gruppe:
         writeMemberCSV(csvwriter, '    ', member, calcBeitragHauptVerein_single(member), calcBeitragAbteilung_single(member))
 
 def write_csv(file_path, hauptzahlerListe: dict[int, list[Mitglied]]) -> None:
@@ -318,12 +322,12 @@ def write_csv(file_path, hauptzahlerListe: dict[int, list[Mitglied]]) -> None:
         csvwriter = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter=';')
         csvwriter.writeheader()
 
-        for familie in hauptzahlerListe.values():
-            hauptZahler = getHauptzahler(familie)
+        for gruppe in hauptzahlerListe.values():
+            hauptZahler = getHauptzahler(gruppe)
 
-            writeHauptzahlerCSV(csvwriter, hauptZahler, familie)
+            writeHauptzahlerCSV(csvwriter, hauptZahler, gruppe)
             if args.debug:
-                writeFamilienCSV(csvwriter, familie)
+                writeGruppenCSV(csvwriter, gruppe)
 
 #------------------------------------------------------------------------------
 argParser = argparse.ArgumentParser("CSV test")
@@ -331,14 +335,17 @@ argParser.add_argument('-i', '--input', help='Mitgliederliste als csv Datei', ty
 argParser.add_argument('-o', '--output', help='Ergebnis der Beitragsliste als csv Datei', type=str, required=True)
 argParser.add_argument('-d', '--debug', help='Schreib Familien in die Beitragsliste', action='store_true')
 
-args = argParser.parse_args()
+try:
+    args = argParser.parse_args()
 
-print(f'Lese {args.input} ...')
-members, hauptzahler = read_csv(args.input)
-print(f'Anzahl Mitglieder : {len(members)}')
-print(f'Anzahl Hauptzahler: {len(hauptzahler)}')
+    print(f'Lese {args.input} ...')
+    members, hauptzahler = read_csv(args.input)
+    print(f'Anzahl Mitglieder : {len(members)}')
+    print(f'Anzahl Hauptzahler: {len(hauptzahler)}')
 
-checkContraints(hauptzahler)
+    checkContraints(hauptzahler)
 
-print(f'Schreibe {args.output} ...')
-write_csv(args.output, hauptzahler)
+    print(f'Schreibe {args.output} ...')
+    write_csv(args.output, hauptzahler)
+except Exception as exception:
+    print(f'Fehler: {exception}')   
