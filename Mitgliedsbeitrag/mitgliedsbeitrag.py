@@ -42,17 +42,28 @@ class Mitglied(NamedTuple):
     hauptzahler: int
     kategorie : Kategorie
     abteilung: Abteilung
+    gruppennummer: int = 0
+
+gruppenNummer = 1
+gruppenDict: dict[int, int] = {}
 
 def MemberFromRow(row: dict[str, str]) -> Mitglied:
+    hauptzahlernummer = asInt(row["Hauptzahler Mitgliedsnummer"])
+    if hauptzahlernummer not in gruppenDict:
+        global gruppenNummer
+        gruppenDict[hauptzahlernummer] = gruppenNummer
+        gruppenNummer += 1
+    
     return Mitglied(
         mitgliedsnummer=asInt(row["Mitgliedsnummer"]),
         vorname=row["Vorname"],
         nachname=row["Nachname"],
         geburtsdatum=asDate(row["Geburtsdatum"]),
         aktiv=row["Status"] == "Aktivmitglied",
-        hauptzahler=asInt(row["Hauptzahler Mitgliedsnummer"]),
+        hauptzahler=hauptzahlernummer,
         kategorie=Kategorie(row["Beitragskategorie"]),
-        abteilung=Abteilung(row["Abteilung"])
+        abteilung=Abteilung(row["Abteilung"]),
+        gruppennummer=gruppenDict[hauptzahlernummer]
     )
 
 def toCSV(mitglied: Mitglied) -> str:
@@ -274,26 +285,25 @@ def checkContraints(hauptzahler: dict[int, list[Mitglied]]) -> None:
             print(exception)
 
 #------------------------------------------------------------------------------
-def read_csv(file_path) -> tuple[dict[int, Mitglied], dict[int, list[Mitglied]]]:
-    members = {}
-    hauptzahler = {}
+def read_csv(file_path) -> dict[int, list[Mitglied]]:
+    gruppen = {}
     with open(file_path, mode='r', encoding='ansi', newline='') as csvfile:
         csvreader = csv.DictReader(csvfile, delimiter=';')
         try:
             for row in csvreader:
                 member = MemberFromRow(row)
-                members[member.mitgliedsnummer] = member
-                if member.hauptzahler not in hauptzahler:
-                    hauptzahler[member.hauptzahler] = []
-                hauptzahler[member.hauptzahler].append(member)
+                if member.hauptzahler not in gruppen:
+                    gruppen[member.hauptzahler] = []
+                gruppen[member.hauptzahler].append(member)
         except Exception as exception:
             raise ValueError(f'{file_path}:{csvreader.line_num}: {exception}')
-    return members, hauptzahler
+    return gruppen
 
 #------------------------------------------------------------------------------
 def writeMemberCSV(csvwriter, hauptZahlerNummer: str, member: Mitglied, hauptvereinBeitrag: int, abteilungBeitrag: int) -> None:
     csvwriter.writerow({
         'Hauptzahler': hauptZahlerNummer,
+        'Gruppe': member.gruppennummer,
         'Vorname': member.vorname,
         'Nachname': member.nachname,
         'Mitgliedsnummer': member.mitgliedsnummer,
@@ -318,7 +328,7 @@ def writeGruppenCSV(csvwriter, gruppe: list[Mitglied]) -> None:
 
 def write_csv(file_path, hauptzahlerListe: dict[int, list[Mitglied]]) -> None:
     with open(file_path, mode='w', encoding='utf-8-sig', newline='') as csvfile:
-        fieldnames = ['Hauptzahler', 'Vorname', 'Nachname', 'Mitgliedsnummer', 'Abteilung', 'Status', 'Alter', 'Beitragskategorie', 'BeitragHauptverein', 'BeitragAbteilung', 'Gesamt']
+        fieldnames = ['Hauptzahler', 'Gruppe', 'Vorname', 'Nachname', 'Mitgliedsnummer', 'Abteilung', 'Status', 'Alter', 'Beitragskategorie', 'BeitragHauptverein', 'BeitragAbteilung', 'Gesamt']
         csvwriter = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter=';')
         csvwriter.writeheader()
 
@@ -339,13 +349,12 @@ try:
     args = argParser.parse_args()
 
     print(f'Lese {args.input} ...')
-    members, hauptzahler = read_csv(args.input)
-    print(f'Anzahl Mitglieder : {len(members)}')
-    print(f'Anzahl Hauptzahler: {len(hauptzahler)}')
+    gruppen = read_csv(args.input)
+    print(f'Anzahl Hauptzahler: {len(gruppen)}')
 
-    checkContraints(hauptzahler)
+    checkContraints(gruppen)
 
     print(f'Schreibe {args.output} ...')
-    write_csv(args.output, hauptzahler)
+    write_csv(args.output, gruppen)
 except Exception as exception:
-    print(f'Fehler: {exception}')   
+    print(f'Fehler: {exception}')
